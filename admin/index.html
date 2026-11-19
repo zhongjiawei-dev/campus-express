@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>校园快递代取 · 管理后台</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #F5F6F7; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; color: #1F2329; }
+    #app { min-height: 100vh; }
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1F7A5C 0%, #2E9A75 100%); }
+    .login-card { width: 380px; background: #fff; border-radius: 14px; padding: 36px; box-shadow: 0 18px 50px rgba(0,0,0,.18); }
+    .login-card h1 { font-size: 22px; margin: 0 0 6px; }
+    .login-card p { color: #8A8F99; font-size: 13px; margin: 0 0 24px; }
+    .layout { display: flex; min-height: 100vh; }
+    .aside { width: 220px; background: #FFFFFF; border-right: 1px solid #EEF0F2; padding: 22px 14px; position: sticky; top: 0; height: 100vh; }
+    .brand { font-size: 17px; font-weight: 600; color: #1F7A5C; padding: 0 12px 18px; }
+    .nav-item { padding: 11px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; color: #4B5563; margin-bottom: 4px; }
+    .nav-item:hover { background: #F5F7F6; }
+    .nav-item.active { background: #EAF4F0; color: #1F7A5C; font-weight: 600; }
+    .main { flex: 1; padding: 26px 30px 40px; }
+    .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-head h2 { margin: 0; font-size: 22px; }
+    .page-head .sub { color: #8A8F99; font-size: 13px; margin-top: 6px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 16px rgba(31,35,41,.04); margin-bottom: 18px; }
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .metric { background: #fff; border-radius: 12px; padding: 18px 20px; box-shadow: 0 4px 16px rgba(31,35,41,.04); }
+    .metric .label { color: #8A8F99; font-size: 13px; }
+    .metric .value { font-size: 26px; font-weight: 600; margin-top: 8px; color: #1F7A5C; }
+    .metric .value.warn { color: #D9480F; }
+    .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+    .el-table { --el-table-border-color: #F0F1F3; }
+    .status-pill { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; background: #EAF4F0; color: #1F7A5C; }
+    .status-pill.off { background: #FDF0E9; color: #D9480F; }
+    .empty-tip { color: #A8ADB6; font-size: 13px; padding: 16px 0; }
+    .notice-form { max-width: 560px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div v-if="!token" class="login-wrap">
+    <div class="login-card">
+      <h1>校园快递代取 · 管理后台</h1>
+      <p>订单监管 / 实名审核 / 定价配置 / 投诉仲裁</p>
+      <el-form :model="loginForm" label-position="top">
+        <el-form-item label="管理员账号">
+          <el-input v-model="loginForm.username" placeholder="admin" />
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-input v-model="loginForm.password" type="password" placeholder="admin123" show-password @keyup.enter="login" />
+        </el-form-item>
+        <el-button type="primary" style="width:100%; background:#1F7A5C; border-color:#1F7A5C" :loading="logging" @click="login">登录</el-button>
+      </el-form>
+      <p style="margin-top:18px">演示账号：admin / admin123</p>
+    </div>
+  </div>
+
+  <div v-else class="layout">
+    <aside class="aside">
+      <div class="brand">校园快递代取</div>
+      <div v-for="item in menus" :key="item.key" class="nav-item" :class="{ active: menu === item.key }" @click="switchMenu(item.key)">
+        {{ item.name }}
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="page-head">
+        <div>
+          <h2>{{ currentMenuName }}</h2>
+          <div class="sub">数据来自 H2 演示库 / 可切换 MySQL 生产库</div>
+        </div>
+        <el-button size="small" @click="logout">退出登录</el-button>
+      </div>
+
+      <section v-if="menu === 'dashboard'">
+        <div class="cards">
+          <div class="metric"><div class="label">今日订单</div><div class="value">{{ dashboard.todayOrders || 0 }}</div></div>
+          <div class="metric"><div class="label">今日交易额</div><div class="value">¥{{ dashboard.todayGmv || 0 }}</div></div>
+          <div class="metric"><div class="label">7 日活跃用户</div><div class="value">{{ dashboard.activeUsers || 0 }}</div></div>
+          <div class="metric"><div class="label">待接单</div><div class="value warn">{{ dashboard.pendingOrders || 0 }}</div></div>
+        </div>
+        <div class="cards">
+          <div class="metric"><div class="label">待审核代取员</div><div class="value warn">{{ dashboard.pendingAudit || 0 }}</div></div>
+          <div class="metric"><div class="label">待审核提现</div><div class="value warn">{{ dashboard.pendingWithdraw || 0 }}</div></div>
+          <div class="metric"><div class="label">待处理投诉</div><div class="value warn">{{ dashboard.openComplaints || 0 }}</div></div>
+          <div class="metric"><div class="label">7 日交易额</div><div class="value">¥{{ dashboard.weekGmv || 0 }}</div></div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin:0 0 14px;font-size:16px">订单状态分布</h3>
+          <el-table :data="dashboard.statusCounts || []" size="small">
+            <el-table-column prop="status" label="状态码" width="100" />
+            <el-table-column label="状态">
+              <template #default="scope">{{ statusText[scope.row.status] || '未知' }}</template>
+            </el-table-column>
+            <el-table-column prop="cnt" label="订单数" width="120" />
+          </el-table>
+        </div>
+
+        <div class="card">
+          <h3 style="margin:0 0 14px;font-size:16px">代取员绩效 Top 5（近 7 天）</h3>
+          <el-table :data="dashboard.topCouriers || []" size="small">
+            <el-table-column prop="realname" label="代取员" />
+            <el-table-column prop="cnt" label="完成单量" width="140" />
+          </el-table>
+          <div v-if="!(dashboard.topCouriers || []).length" class="empty-tip">暂无完成订单</div>
+        </div>
+      </section>
+
+      <section v-if="menu === 'orders'">
+        <div class="card">
+          <div class="toolbar">
+            <el-select v-model="orderStatus" placeholder="全部状态" clearable style="width:180px" @change="loadOrders(1)">
+              <el-option v-for="(text, code) in statusText" :key="code" :label="text" :value="String(code)" />
+            </el-select>
+            <el-input v-model="orderKeyword" placeholder="按订单号搜索" clearable style="width:240px" @keyup.enter="loadOrders(1)" />
+            <el-button type="primary" style="background:#1F7A5C;border-color:#1F7A5C" @click="loadOrders(1)">查询</el-button>
+          </div>
+          <el-table :data="orders" size="small">
+            <el-table-column prop="orderNo" label="订单号" width="190" />
+            <el-table-column label="状态" width="110">
+              <template #default="scope"><span class="status-pill" :class="{ off: [70,90].includes(scope.row.status) }">{{ statusText[scope.row.status] }}</span></template>
+            </el-table-column>
+            <el-table-column label="金额" width="100">
+              <template #default="scope">¥{{ scope.row.totalFee }}</template>
+            </el-table-column>
+            <el-table-column prop="distanceM" label="距离(m)" width="90" />
+            <el-table-column label="下单时间" width="170">
+              <template #default="scope">{{ fmt(scope.row.createdAt) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="120">
+              <template #default="scope">
+                <el-button v-if="[10,20,30].includes(scope.row.status)" link type="danger" @click="cancelOrder(scope.row.orderNo)">平台取消</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-pagination style="margin-top:14px" layout="total, prev, pager, next" :total="orderTotal" :page-size="10" @current-change="loadOrders" />
+        </div>
+      </section>
+
+      <section v-if="menu === 'couriers'">
+        <div class="card">
+          <div class="toolbar">
+            <el-radio-group v-model="courierAudit" @change="loadCouriers(1)">
+              <el-radio-button label="1">待审核</el-radio-button>
+              <el-radio-button label="2">已通过</el-radio-button>
+              <el-radio-button label="3">已驳回</el-radio-button>
+            </el-radio-group>
+          </div>
+          <el-table :data="couriers" size="small">
+            <el-table-column prop="realName" label="姓名" width="110" />
+            <el-table-column prop="studentNo" label="学号" width="130" />
+            <el-table-column prop="idCardMask" label="身份证" width="190" />
+            <el-table-column prop="maxWeightGram" label="可接重量(g)" width="120" />
+            <el-table-column label="服务时段" width="140">
+              <template #default="scope">{{ scope.row.serviceStart }} - {{ scope.row.serviceEnd }}</template>
+            </el-table-column>
+            <el-table-column label="状态" width="100">
+              <template #default="scope">
+                <span class="status-pill" :class="{ off: scope.row.auditStatus === 3 }">{{ ['', '待审核', '已通过', '已驳回'][scope.row.auditStatus] }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="170">
+              <template #default="scope">
+                <template v-if="scope.row.auditStatus === 1">
+                  <el-button link type="success" @click="auditCourier(scope.row.id, true)">通过</el-button>
+                  <el-button link type="danger" @click="auditCourier(scope.row.id, false)">驳回</el-button>
+                </template>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-pagination style="margin-top:14px" layout="total, prev, pager, next" :total="courierTotal" :page-size="10" @current-change="loadCouriers" />
+        </div>
+      </section>
+
+      <section v-if="menu === 'rules'">
+        <div class="card">
+          <div class="toolbar">
+            <el-button type="primary" style="background:#1F7A5C;border-color:#1F7A5C" @click="openRule()">新增规则</el-button>
+          </div>
+          <el-table :data="rules" size="small">
+            <el-table-column prop="ruleNo" label="规则编号" width="140" />
+            <el-table-column label="类型" width="110">
+              <template #default="scope">{{ ['', '普通件', '大件', '生鲜冷链'][scope.row.orderType] }}</template>
+            </el-table-column>
+            <el-table-column prop="baseFee" label="基础费" width="90" />
+            <el-table-column prop="freeWeightGram" label="免费重量(g)" width="120" />
+            <el-table-column prop="weightStepFee" label="重量单价" width="100" />
+            <el-table-column prop="distanceStepFee" label="距离单价" width="100" />
+            <el-table-column prop="peakRate" label="高峰溢价%" width="110" />
+            <el-table-column prop="typeExtraFee" label="品类附加" width="100" />
+            <el-table-column prop="version" label="版本" width="80" />
+            <el-table-column label="操作" width="90">
+              <template #default="scope"><el-button link type="primary" @click="openRule(scope.row)">编辑</el-button></template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </section>
+
+      <section v-if="menu === 'withdraws'">
+        <div class="card">
+          <el-table :data="withdraws" size="small">
+            <el-table-column prop="withdrawNo" label="提现单号" width="200" />
+            <el-table-column prop="amount" label="金额" width="100" />
+            <el-table-column prop="accountMask" label="收款账号" width="150" />
+            <el-table-column label="状态" width="110">
+              <template #default="scope">
+                <span class="status-pill" :class="{ off: scope.row.status === 3 }">{{ ['', '审核中', '已打款', '已驳回'][scope.row.status] }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="申请时间" width="170">
+              <template #default="scope">{{ fmt(scope.row.createdAt) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="170">
+              <template #default="scope">
+                <template v-if="scope.row.status === 1">
+                  <el-button link type="success" @click="auditWithdraw(scope.row.id, true)">通过</el-button>
+                  <el-button link type="danger" @click="auditWithdraw(scope.row.id, false)">驳回</el-button>
+                </template>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </section>
+
+      <section v-if="menu === 'complaints'">
+        <div class="card">
+          <el-table :data="complaints" size="small">
+            <el-table-column prop="complaintNo" label="投诉单号" width="190" />
+            <el-table-column prop="orderNo" label="订单号" width="190" />
+            <el-table-column prop="description" label="问题描述" />
+            <el-table-column label="状态" width="100">
+              <template #default="scope">
+                <span class="status-pill" :class="{ off: scope.row.status === 2 }">{{ scope.row.status === 0 ? '待处理' : '已处理' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="110">
+              <template #default="scope">
+                <el-button v-if="scope.row.status === 0" link type="primary" @click="openComplaint(scope.row)">仲裁</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </section>
+
+      <section v-if="menu === 'notice'">
+        <div class="card">
+          <div class="notice-form">
+            <el-form label-position="top">
+              <el-form-item label="公告标题">
+                <el-input v-model="notice.title" placeholder="如：双十一期间配送时效说明" />
+              </el-form-item>
+              <el-form-item label="公告内容">
+                <el-input v-model="notice.content" type="textarea" :rows="4" placeholder="面向全部在校用户推送站内消息" />
+              </el-form-item>
+              <el-button type="primary" style="background:#1F7A5C;border-color:#1F7A5C" @click="sendNotice">发布公告</el-button>
+            </el-form>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <el-dialog v-model="ruleDialog" title="计价规则" width="620px">
+    <el-form :model="ruleForm" label-width="130px">
+      <el-form-item label="快递类型">
+        <el-select v-model="ruleForm.orderType" style="width:200px">
+          <el-option label="普通件" :value="1" />
+          <el-option label="大件" :value="2" />
+          <el-option label="生鲜冷链" :value="3" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="基础配送费"><el-input-number v-model="ruleForm.baseFee" :min="0" :step="0.5" /></el-form-item>
+      <el-form-item label="免费重量(g)"><el-input-number v-model="ruleForm.freeWeightGram" :min="0" :step="500" /></el-form-item>
+      <el-form-item label="重量步长(g)"><el-input-number v-model="ruleForm.weightStepGram" :min="100" :step="100" /></el-form-item>
+      <el-form-item label="重量步长费"><el-input-number v-model="ruleForm.weightStepFee" :min="0" :step="0.5" /></el-form-item>
+      <el-form-item label="免费距离(m)"><el-input-number v-model="ruleForm.freeDistanceM" :min="0" :step="100" /></el-form-item>
+      <el-form-item label="距离步长(m)"><el-input-number v-model="ruleForm.distanceStepM" :min="100" :step="100" /></el-form-item>
+      <el-form-item label="距离步长费"><el-input-number v-model="ruleForm.distanceStepFee" :min="0" :step="0.1" /></el-form-item>
+      <el-form-item label="高峰溢价(%)"><el-input-number v-model="ruleForm.peakRate" :min="0" :step="1" /></el-form-item>
+      <el-form-item label="品类附加费"><el-input-number v-model="ruleForm.typeExtraFee" :min="0" :step="0.5" /></el-form-item>
+      <el-form-item label="最低收费"><el-input-number v-model="ruleForm.minFee" :min="0" :step="0.5" /></el-form-item>
+      <el-form-item label="最高收费"><el-input-number v-model="ruleForm.maxFee" :min="1" :step="1" /></el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="ruleDialog = false">取消</el-button>
+      <el-button type="primary" style="background:#1F7A5C;border-color:#1F7A5C" @click="saveRule">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="complaintDialog" title="投诉仲裁" width="540px">
+    <el-form :model="complaintForm" label-width="110px">
+      <el-form-item label="责任方">
+        <el-select v-model="complaintForm.responsibility" style="width:200px">
+          <el-option label="平台承担" :value="1" />
+          <el-option label="代取员责任" :value="2" />
+          <el-option label="用户责任" :value="3" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="赔付金额"><el-input-number v-model="complaintForm.compensation" :min="0" :step="1" /></el-form-item>
+      <el-form-item label="处理结论">
+        <el-input v-model="complaintForm.result" type="textarea" :rows="3" placeholder="填写处理结论与补偿说明" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="complaintDialog = false">取消</el-button>
+      <el-button type="primary" style="background:#1F7A5C;border-color:#1F7A5C" @click="resolveComplaint">提交</el-button>
+    </template>
+  </el-dialog>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+<script>
+const API = 'http://localhost:8080/api/v1';
+
+const app = Vue.createApp({
+  data() {
+    return {
+      token: localStorage.getItem('adminToken') || '',
+      logging: false,
+      loginForm: { username: 'admin', password: 'admin123' },
+      menus: [
+        { key: 'dashboard', name: '数据看板' },
+        { key: 'orders', name: '订单管理' },
+        { key: 'couriers', name: '代取员审核' },
+        { key: 'rules', name: '定价规则' },
+        { key: 'withdraws', name: '提现审核' },
+        { key: 'complaints', name: '投诉仲裁' },
+        { key: 'notice', name: '系统公告' }
+      ],
+      menu: 'dashboard',
+      statusText: { 10: '待支付', 20: '待接单', 30: '已接单', 40: '已取件', 50: '已送达', 60: '已完成', 70: '已取消', 80: '退款中', 90: '已退款', 100: '售后处理中' },
+      dashboard: {},
+      orders: [], orderTotal: 0, orderPage: 1, orderStatus: '', orderKeyword: '',
+      couriers: [], courierTotal: 0, courierAudit: '1',
+      rules: [], ruleDialog: false, ruleForm: {},
+      withdraws: [],
+      complaints: [], complaintDialog: false, complaintForm: {},
+      notice: { title: '', content: '' }
+    };
+  },
+  computed: {
+    currentMenuName() {
+      const hit = this.menus.find((m) => m.key === this.menu);
+      return hit ? hit.name : '';
+    }
+  },
+  methods: {
+    async api(path, method, body) {
+      const res = await fetch(API + path, {
+        method: method || 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': this.token ? 'Bearer ' + this.token : ''
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const json = await res.json();
+      if (json.code !== 0) {
+        ElementPlus.ElMessage.error(json.message || '请求失败');
+        throw new Error(json.message);
+      }
+      return json.data;
+    },
+    fmt(value) {
+      return value ? String(value).replace('T', ' ').substring(0, 16) : '';
+    },
+    async login() {
+      this.logging = true;
+      try {
+        const data = await this.api('/admin/login', 'POST', this.loginForm);
+        this.token = data.token;
+        localStorage.setItem('adminToken', data.token);
+        ElementPlus.ElMessage.success('登录成功');
+        this.loadDashboard();
+      } finally {
+        this.logging = false;
+      }
+    },
+    logout() {
+      this.token = '';
+      localStorage.removeItem('adminToken');
+    },
+    switchMenu(key) {
+      this.menu = key;
+      if (key === 'dashboard') this.loadDashboard();
+      if (key === 'orders') this.loadOrders(1);
+      if (key === 'couriers') this.loadCouriers(1);
+      if (key === 'rules') this.loadRules();
+      if (key === 'withdraws') this.loadWithdraws();
+      if (key === 'complaints') this.loadComplaints();
+    },
+    async loadDashboard() {
+      this.dashboard = await this.api('/admin/dashboard');
+    },
+    async loadOrders(page) {
+      this.orderPage = page || 1;
+      let url = '/admin/orders?page=' + this.orderPage + '&size=10';
+      if (this.orderStatus) url += '&status=' + this.orderStatus;
+      if (this.orderKeyword) url += '&keyword=' + encodeURIComponent(this.orderKeyword);
+      const data = await this.api(url);
+      this.orders = data.records;
+      this.orderTotal = data.total;
+    },
+    async cancelOrder(orderNo) {
+      await ElementPlus.ElMessageBox.prompt('请输入取消原因', '平台取消订单', { confirmButtonText: '确定', cancelButtonText: '取消' })
+        .then(async ({ value }) => {
+          await this.api('/admin/orders/' + orderNo + '/cancel', 'POST', { reason: value });
+          ElementPlus.ElMessage.success('已取消');
+          this.loadOrders(this.orderPage);
+        }).catch(() => {});
+    },
+    async loadCouriers(page) {
+      this.courierPage = page || 1;
+      const data = await this.api('/admin/couriers?auditStatus=' + this.courierAudit + '&page=' + this.courierPage + '&size=10');
+      this.couriers = data.records;
+      this.courierTotal = data.total;
+    },
+    async auditCourier(id, pass) {
+      await this.api('/admin/couriers/' + id + '/audit', 'POST', { pass: pass, remark: pass ? '资料齐全，审核通过' : '资料不符合要求' });
+      ElementPlus.ElMessage.success(pass ? '已通过' : '已驳回');
+      this.loadCouriers(this.courierPage);
+    },
+    async loadRules() {
+      this.rules = await this.api('/admin/price-rules');
+    },
+    openRule(row) {
+      this.ruleForm = row ? Object.assign({}, row) : {
+        orderType: 1, baseFee: 3, freeWeightGram: 3000, weightStepGram: 1000, weightStepFee: 1,
+        freeDistanceM: 500, distanceStepM: 500, distanceStepFee: 0.8, peakRate: 20, typeExtraFee: 0,
+        minFee: 2, maxFee: 50
+      };
+      this.ruleDialog = true;
+    },
+    async saveRule() {
+      await this.api('/admin/price-rules', 'POST', this.ruleForm);
+      ElementPlus.ElMessage.success('规则已保存');
+      this.ruleDialog = false;
+      this.loadRules();
+    },
+    async loadWithdraws() {
+      const data = await this.api('/admin/withdraws?status=1&page=1&size=20');
+      this.withdraws = data.records;
+    },
+    async auditWithdraw(id, pass) {
+      await this.api('/admin/withdraws/' + id + '/audit', 'POST', { pass: pass, remark: pass ? '审核通过' : '账户信息有误' });
+      ElementPlus.ElMessage.success('已处理');
+      this.loadWithdraws();
+    },
+    async loadComplaints() {
+      const data = await this.api('/admin/complaints?page=1&size=20');
+      this.complaints = data.records;
+    },
+    openComplaint(row) {
+      this.complaintForm = { id: row.id, responsibility: 2, compensation: 0, result: '' };
+      this.complaintDialog = true;
+    },
+    async resolveComplaint() {
+      await this.api('/admin/complaints/' + this.complaintForm.id + '/resolve', 'POST', {
+        result: this.complaintForm.result,
+        compensation: this.complaintForm.compensation,
+        responsibility: this.complaintForm.responsibility
+      });
+      ElementPlus.ElMessage.success('仲裁完成');
+      this.complaintDialog = false;
+      this.loadComplaints();
+    },
+    async sendNotice() {
+      if (!this.notice.title || !this.notice.content) {
+        ElementPlus.ElMessage.warning('请填写标题与内容');
+        return;
+      }
+      await this.api('/admin/notices', 'POST', this.notice);
+      ElementPlus.ElMessage.success('公告已推送');
+      this.notice = { title: '', content: '' };
+    }
+  },
+  mounted() {
+    if (this.token) this.loadDashboard();
+  }
+});
+
+app.use(ElementPlus);
+app.mount('#app');
+</script>
+</body>
+</html>

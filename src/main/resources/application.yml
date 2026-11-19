@@ -1,0 +1,77 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+spring:
+  application:
+    name: campus-express
+  datasource:
+    url: jdbc:h2:mem:campus;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      logic-delete-field: isDeleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+app:
+  jwt:
+    secret: campus-express-demo-secret-key-change-me-in-production-2026
+    expire-hours: 24
+  crypto:
+    aes-key: campus-express-demo-aes-key-change-me
+  map:
+    road-factor: 1.25
+  grab:
+    mode: memory          # memory | redis
+    ttl-seconds: 300
+    max-qps: 5
+    accept-timeout-minutes: 30
+
+logging:
+  level:
+    root: info
+    com.campus.express: info
+
+---
+spring:
+  config:
+    activate:
+      on-profile: mysql
+  datasource:
+    url: jdbc:mysql://localhost:3306/campus_express?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: campus
+    password: campus123
+  sql:
+    init:
+      mode: never
+  h2:
+    console:
+      enabled: false
+
+app:
+  grab:
+    # 单机部署先用内存锁；接入 Redis 后改为 redis，并配置 spring.data.redis.host
+    mode: memory

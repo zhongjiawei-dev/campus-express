@@ -1,4 +1,4 @@
-# 校园快递代取系统
+﻿# 校园快递代取系统
 
 这是我做的一个校园快递代取 Web 项目。学生发布代取需求，代取员在接单大厅抢单，管理员处理实名审核、提现和投诉。后端用 Spring Boot 3 + MyBatis-Plus，前端用 Vue 2 + Element UI，默认使用 H2，也可以切到 MySQL。
 
@@ -6,6 +6,14 @@
 - Web 端：Vue 2.6 + Element UI 2.15（响应式 H5，手机和电脑浏览器都能用，无需 Node 构建）
 - 管理后台：单页 HTML，Vue 3 + Element Plus（CDN）
 - 测试：JUnit 5，7 个计价用例 + 6 个状态机用例
+
+## 页面截图
+
+截图来自本地启动后的学生端和管理后台，页面由 Vue 2 + Element UI 实际渲染，不是设计稿。
+
+| 学生端首页 | 管理后台登录 |
+|---|---|
+| <img src="docs/images/student-home.png" width="300" alt="学生工作台"> | <img src="docs/images/admin-login.png" width="300" alt="管理后台登录"> |
 
 ## 一、目录结构
 
